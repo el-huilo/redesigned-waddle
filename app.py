@@ -17,10 +17,8 @@ else:
 
 MAX_SEED = np.iinfo(np.int32).max
 MAX_IMAGE_SIZE = 1024
-# pipe = False # For local debug
-# device = "cpu"
-# v 2.5 not perfect but idgf
-version = "v2.5"
+# v 2.6 not perfect but idgf
+version = "v2.6"
 Image_Storage = []
 
 def Download_Model(link):
@@ -38,7 +36,13 @@ def Load_Model(value):
         pipe.enable_xformers_memory_efficient_attention()
     global imgpipe
     imgpipe = StableDiffusionXLImg2ImgPipeline(**pipe.components)
+    global was_loaded
+    was_loaded = True
     return {prompt: gr.Text(placeholder="Enter your prompt", interactive=True), PipeReady: gr.Checkbox(value=True)}
+
+def update_all():
+    if was_loaded == True:
+        return {prompt: gr.Text(placeholder="Enter your prompt", interactive=True), PipeReady: gr.Checkbox(value=True), gallery: Image_Storage}
 
 def Device():
     if device == "cuda":
@@ -302,6 +306,11 @@ with gr.Blocks(css=css) as demo:
         ],
         outputs=[downloadlink],
     )
-
+    gr.on(
+        triggers=[Moreomore.select],
+        fn=update_all,
+        inputs=[],
+        outputs=[prompt, PipeReady, gallery],
+    )
 if __name__ == "__main__":
     demo.launch()

@@ -23,7 +23,7 @@ class AuxVars:
         else:
             self.torch_dtype = torch.float32
             self.device = "cpu"
-        self.theme = gr.themes.Default
+        self.theme = gr.themes.Default()
 
 class Pipes:
     def load(self, pipe, type):
@@ -55,6 +55,7 @@ if not os.path.isdir("/content/gifs"):
 def Download_Model(link):
     if link == 'dev build':
         aux.theme = gr.themes.Soft(primary_hue=gr.themes.colors.violet, secondary_hue=gr.themes.colors.neutral, neutral_hue=gr.themes.colors.sky)
+        return gr.Blocks(theme=aux.theme)
     else:
         subprocess.run(["curl", "-Lo", "ManualDownload.safetensors", link])
     return "Finished"
@@ -395,6 +396,14 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            downloadlink,
         ],
         outputs=[downloadlink],
+    )
+    gr.on(
+        triggers=[downloadlink.submit],
+        fn=Download_Model,
+        inputs=[
+           downloadlink,
+        ],
+        outputs=[demo],
     )
     gr.on(
         triggers=[Moreomore.select],

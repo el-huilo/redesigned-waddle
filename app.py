@@ -88,6 +88,9 @@ def Handle_Upload(value):
     return Image_Storage
 
 def Handle_Images(index):
+    if index == "all":
+        del Image_Storage[0:]
+        return Image_Storage
     intind = int(index)
     if (intind < 0):
         return Image_Storage
@@ -252,7 +255,7 @@ with gr.Blocks(css=css) as demo:
                 label="Удаление кортынки",
                 show_label=False,
                 max_lines=1,
-                placeholder="Номер кортынки. Мне лень танцевать с бубном поэтому удаляем картинки из галереи по номеру",
+                placeholder="Номер кортынки. all удалить все",
                 container=False,
             )
             Del_button = gr.Button("Delete", scale=0, variant="primary")

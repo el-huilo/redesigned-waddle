@@ -88,7 +88,7 @@ def Handle_Upload(value):
     return Image_Storage
 
 def Handle_Images(index):
-    if index == "all":
+    if index == 'all':
         del Image_Storage[0:]
         return Image_Storage
     intind = int(index)

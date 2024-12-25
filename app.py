@@ -48,6 +48,7 @@ MAX_SEED = np.iinfo(np.int32).max
 Image_Storage = []
 aux = AuxVars()
 pipes = Pipes()
+os.mkdir("/content/gifs")
 
 def Download_Model(link):
     subprocess.run(["curl", "-Lo", "ManualDownload.safetensors", link])

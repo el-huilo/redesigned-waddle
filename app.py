@@ -48,7 +48,8 @@ MAX_SEED = np.iinfo(np.int32).max
 Image_Storage = []
 aux = AuxVars()
 pipes = Pipes()
-os.mkdir("/content/gifs")
+if not os.path.isdir("/content/gifs"):
+    os.mkdir("/content/gifs")
 
 def Download_Model(link):
     subprocess.run(["curl", "-Lo", "ManualDownload.safetensors", link])
@@ -286,7 +287,7 @@ with gr.Blocks(css=css) as demo:
                     minimum=256,
                     maximum=aux.max_image_size,
                     step=32,
-                    value=1024,
+                    value=512,
                 )
 
                 height = gr.Slider(
@@ -294,14 +295,14 @@ with gr.Blocks(css=css) as demo:
                     minimum=256,
                     maximum=aux.max_image_size,
                     step=32,
-                    value=1024,
+                    value=512,
                 )
 
             with gr.Row():
                 guidance_scale = gr.Slider(
                     label="Guidance scale",
                     minimum=0.0,
-                    maximum=25.0,
+                    maximum=50.0,
                     step=0.1,
                     value=7.0,
                 )
@@ -309,7 +310,7 @@ with gr.Blocks(css=css) as demo:
                 num_inference_steps = gr.Slider(
                     label="Number of inference steps",
                     minimum=1,
-                    maximum=100,
+                    maximum=70,
                     step=1,
                     value=20,
                 )

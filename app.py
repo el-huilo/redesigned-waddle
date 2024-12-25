@@ -185,8 +185,8 @@ def animinfer(
         generator=generator,
         num_frames=num_frames,
     ).frames[0]
-    export_to_gif(image, f"{aux.animiter}.gif", fps=fps_count)
-    Image_Storage.append(f"{aux.animiter}.gif")
+    export_to_gif(image, f"gifs/{aux.animiter}.gif", fps=fps_count)
+    Image_Storage.append(f"gifs/{aux.animiter}.gif")
     aux.animiter += 1
     return Image_Storage[-1], Handle_Images(-1), seed
 
@@ -305,7 +305,7 @@ with gr.Blocks(css=css) as demo:
                 num_inference_steps = gr.Slider(
                     label="Number of inference steps",
                     minimum=1,
-                    maximum=50,
+                    maximum=100,
                     step=1,
                     value=20,
                 )
@@ -320,14 +320,14 @@ with gr.Blocks(css=css) as demo:
                 num_frames = gr.Slider(
                     label="Frames count",
                     minimum=2,
-                    maximum=20,
+                    maximum=32,
                     step=1,
                     value=8,
                 )
                 fps_count = gr.Slider(
                     label="gif fps",
                     minimum=3,
-                    maximum=20,
+                    maximum=32,
                     step=1,
                     value=8,
                 )

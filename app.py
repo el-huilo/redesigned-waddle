@@ -34,7 +34,7 @@ models_types_list = [
 ]
 class AuxVars:
     def __init__(self):
-        self.version = "v3.1"
+        self.version = "v3.5"
         self.was_loaded = False
         self.animiter = 0
         self.AnimpipeReady = False

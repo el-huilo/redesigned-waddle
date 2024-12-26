@@ -1,29 +1,61 @@
 import gradio as gr
 import numpy as np
-import random, os, subprocess, torch
+import random, os, subprocess, torch, sys
 from PIL import Image
 
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
 from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline
-from diffusers import AnimateDiffPipeline, MotionAdapter, DDIMScheduler, EulerAncestralDiscreteScheduler
+from diffusers import AnimateDiffPipeline, MotionAdapter, EulerAncestralDiscreteScheduler
+from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel, GGUFQuantizationConfig
 from diffusers.utils import export_to_gif
 
-model_repo_id = "https://huggingface.co/RuiTenkawa/Hasku/blob/main/hassakuXLSfwNsfw_betaV06.safetensors"  # Replace to the model you would like to use
-
+models_link_list = [
+    "https://civitai.com/api/download/models/378499?token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/575495?token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/306531?type=Model&format=SafeTensor&size=pruned&fp=fp32&token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/1094291?token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/1195065?token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/410539?token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/1129683?token=46a07f9ea1cf055b02a4bcb2c4277e95"
+]
+models_name_list = [
+    "HassakuSFW (Anime)",
+    "HassakuNSFW (Anime)",
+    "Hentai 1.3 (Anime, SD)",
+    "Lustify (Real)",
+    "XXX-Ray (Real)",
+    "Toonify (Cartoon)",
+    "Alchemist Mix OnlyToons (Cartoon)",
+    "Hunyuan Video",
+    "Manual Download"
+]
+models_types_list = [
+    "SDXL/Pony",
+    "SD",
+    "HunyuanVideo"
+]
 class AuxVars:
     def __init__(self):
         self.version = "v3.1"
         self.was_loaded = False
         self.animiter = 0
         self.AnimpipeReady = False
+        self.T2V = False
         self.max_image_size = 1024
+        self.max_frames = 32
+        self.min_frames = 2
+        self.step_frames = 1
         if torch.cuda.is_available():
             self.torch_dtype = torch.float16
             self.device = "cuda"
         else:
             self.torch_dtype = torch.float32
             self.device = "cpu"
-        self.theme = gr.themes.Default()
+    def sl(self):
+        self.theme = None
+    def sdev(self):
+        self.version = "dev"
+        self.theme = gr.themes.Soft(primary_hue=gr.themes.colors.violet, secondary_hue=gr.themes.colors.neutral, neutral_hue=gr.themes.colors.sky)
 
 class Pipes:
     def load(self, pipe, type):
@@ -44,31 +76,63 @@ class Pipes:
             aux.AnimpipeReady = True
             self.animpipe.to(aux.device)
         aux.was_loaded = True
+    
+    def HunLoad(self, pipe):
+        self.pipe = pipe
+        self.pipe.enable_vae_slicing()
+        self.pipe.vae.enable_tiling()
+        self.pipe.to(aux.device)
+        aux.was_loaded = True
+        aux.AnimpipeReady = True
+        aux.T2V = True
+        aux.max_frames = 129
+        aux.min_frames = 5
+        aux.step_frames = 4
 
 MAX_SEED = np.iinfo(np.int32).max
 Image_Storage = []
 aux = AuxVars()
 pipes = Pipes()
-if not os.path.isdir("/content/gifs"):
-    os.mkdir("/content/gifs")
+try:
+    mode = sys.argv[1]
+except:
+    aux.sl()
+else:
+    if mode == 'dev_build':
+        aux.sdev()
+    else:
+        aux.sl()
+# if not os.path.isdir("/content/gifs"):
+#     os.mkdir("/content/gifs")
 
 def Download_Model(link):
-    if link == 'dev build':
-        aux.theme = gr.themes.Soft(primary_hue=gr.themes.colors.violet, secondary_hue=gr.themes.colors.neutral, neutral_hue=gr.themes.colors.sky)
-        return gr.Blocks(theme=aux.theme)
-    else:
-        subprocess.run(["curl", "-Lo", "ManualDownload.safetensors", link])
+    subprocess.run(["curl", "-Lo", "Manual_Download.safetensors", link])
     return "Finished"
 
-def Load_Model(value, type):
-    if type == "SDXL/Pony":
-        if value == "HassakuSFW":
-            pipes.load(StableDiffusionXLPipeline.from_single_file(model_repo_id, torch_dtype=aux.torch_dtype, token="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"), type)
-        else:
-            pipes.load(StableDiffusionXLPipeline.from_single_file("/content/ManualDownload.safetensors", torch_dtype=aux.torch_dtype), type)
+def DownNload_Model(value, type):
+    if value == "Manual Download":
+        print("\n\nYou are kidding right?\n\n")
+        return
     else:
-        pipes.load(StableDiffusionPipeline.from_single_file("/content/ManualDownload.safetensors", torch_dtype=aux.torch_dtype), type)
-    return {prompt: gr.Text(placeholder="Enter your prompt", interactive=True), PipeReady: gr.Checkbox(value=True)}
+        ModelLink = models_link_list[models_name_list.index(value)]
+        ModelPath = value.replace(" ", "_")
+        subprocess.run(["curl", "-Lo", f"{ModelPath}.safetensors", ModelLink])
+        return Load_Model(value, type)
+
+def Load_Model(value, type):
+    ModelPath = value.replace(" ", "_")
+    if type == "SDXL/Pony":
+        pipes.load(StableDiffusionXLPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
+    elif type == "SD":
+        pipes.load(StableDiffusionPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
+    else:
+        transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
+                                                                      quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
+                                                                      torch_dtype=aux.torch_dtype)
+        pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
+                                                    transformer=transformer,
+                                                    torch_dtype=aux.torch_dtype))
+    return update_all()
 
 def check_version():
     # works only in google colab
@@ -78,10 +142,36 @@ def check_version():
         return gr.Checkbox(label="Version: " + aux.version + " New available")
 
 def update_all():
-    if aux.was_loaded == True:
-        return {prompt: gr.Text(placeholder="Enter your prompt", interactive=aux.was_loaded), PipeReady: gr.Checkbox(value=aux.was_loaded), gallery: Image_Storage, VStatus: check_version(), gif_button: gr.Button(visible=aux.AnimpipeReady)}
+    if aux.was_loaded == True and aux.T2V == False:
+        return {prompt: gr.Text(placeholder="Enter your prompt", interactive=aux.was_loaded),
+                PipeReady: gr.Checkbox(value=aux.was_loaded),
+                gallery: Image_Storage,
+                VStatus: check_version(),
+                gif_button: gr.Button(visible=aux.AnimpipeReady),
+                num_frames: gr.Slider(visible=aux.AnimpipeReady, maximum=aux.max_frames, minimum=aux.min_frames, step=aux.step_frames),
+                fps_count: gr.Slider(visible=aux.AnimpipeReady),
+                Tx2v: gr.Tab(visible=False)
+                }
+    elif aux.was_loaded == True and aux.T2V == True:
+        return {prompt: gr.Text(placeholder="Firstly load model in More", interactive=aux.was_loaded),
+                PipeReady: gr.Checkbox(value=aux.was_loaded),
+                gallery: Image_Storage,
+                VStatus: check_version(),
+                gif_button: gr.Button(visible=aux.AnimpipeReady),
+                num_frames: gr.Slider(visible=aux.AnimpipeReady),
+                fps_count: gr.Slider(visible=aux.AnimpipeReady),
+                Tx2v: gr.Tab(visible=True)
+                }
     else:
-        return {prompt: gr.Text(placeholder="Firstly load model in More", interactive=aux.was_loaded), PipeReady: gr.Checkbox(value=aux.was_loaded), gallery: Image_Storage, VStatus: check_version(), gif_button: gr.Button(visible=aux.AnimpipeReady)}
+        return {prompt: gr.Text(placeholder="Firstly load model in More", interactive=aux.was_loaded),
+                PipeReady: gr.Checkbox(value=aux.was_loaded),
+                gallery: Image_Storage,
+                VStatus: check_version(),
+                gif_button: gr.Button(visible=aux.AnimpipeReady),
+                num_frames: gr.Slider(visible=aux.AnimpipeReady),
+                fps_count: gr.Slider(visible=aux.AnimpipeReady),
+                Tx2v: gr.Tab(visible=False)
+                }
 
 def Device():
     if aux.device == "cuda":
@@ -109,9 +199,11 @@ def Swap_pipes(evt: gr.SelectData):
     if evt.value == "Text2Img":
         state = "Text2Img" 
         return {
-            width: gr.Slider(visible=True, maximum=aux.max_image_size),
-            height: gr.Slider(visible=True, maximum=aux.max_image_size),
+            width: gr.Slider(visible=True),
+            height: gr.Slider(visible=True),
             strength: gr.Slider(visible=False),
+            negative_prompt: gr.Text(visible=True),
+            AdvSet: gr.Accordion(visible=True),
         }
     elif evt.value == "Img2Img":
         state = "Img2Img"
@@ -119,11 +211,25 @@ def Swap_pipes(evt: gr.SelectData):
             width: gr.Slider(visible=False),
             height: gr.Slider(visible=False),
             strength: gr.Slider(visible=True),
+            negative_prompt: gr.Text(visible=True),
+            AdvSet: gr.Accordion(visible=True),
         }
-    return {
+    elif evt.value == "More":
+        return {
             width: gr.Slider(visible=False),
             height: gr.Slider(visible=False),
             strength: gr.Slider(visible=False),
+            negative_prompt: gr.Text(visible=False),
+            AdvSet: gr.Accordion(visible=False),
+        }
+    else:
+        state = "Text2Vid"
+        return {
+            width: gr.Slider(visible=True),
+            height: gr.Slider(visible=True),
+            strength: gr.Slider(visible=False),
+            negative_prompt: gr.Text(visible=False),
+            AdvSet: gr.Accordion(visible=True),
         }
 
 def infer(
@@ -181,20 +287,36 @@ def animinfer(
     fps_count,
     progress=gr.Progress(track_tqdm=True),
 ):
+    if width == 1024 and height == 1024:
+        width = 768
+        height = 768
+        print("1024x1024 too much. Changing to 768x768")
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator().manual_seed(seed)
 
-    image = pipes.animpipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        guidance_scale=guidance_scale,
-        num_inference_steps=num_inference_steps,
-        width=width,
-        height=height,
-        generator=generator,
-        num_frames=num_frames,
-    ).frames[0]
+    if state == "Text2Vid":
+        image = pipes.animpipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            guidance_scale=guidance_scale,
+            num_inference_steps=num_inference_steps,
+            width=width,
+            height=height,
+            generator=generator,
+            num_frames=num_frames,
+        ).frames[0]
+    else:
+        image = pipes.animpipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            guidance_scale=guidance_scale,
+            num_inference_steps=num_inference_steps,
+            width=width,
+            height=height,
+            generator=generator,
+            num_frames=num_frames,
+        ).frames[0]
     export_to_gif(image, f"gifs/{aux.animiter}.gif", fps=fps_count)
     Image_Storage.append(f"gifs/{aux.animiter}.gif")
     aux.animiter += 1
@@ -211,8 +333,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
     with gr.Column(elem_id="col-container"):
 
         with gr.Tab("Text2Img") as Tx2i:
-            with gr.Row():
-                gr.Text(visible=False, label="Curiosity kills")
+            gr.Text(visible=False, label="Curiosity kills")
         with gr.Tab("Img2Img") as I2i:
             Image_2img = gr.Text(
                 label="Img2Img",
@@ -221,16 +342,19 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                 placeholder="Номер кортынки",
                 container=False,
             )
-        
+        with gr.Tab("Text2Vid", visible=False) as Tx2v:
+            gr.Text(visible=False, label="Curiosity kills")
         with gr.Tab("More") as Moreomore:
                 with gr.Row():
                     PipeReady = gr.Checkbox(value=False, interactive=False, label="Model loaded")
                     gr.Checkbox(value=Device(), interactive=False, label="Cuda enabled")
                     VStatus = gr.Checkbox(interactive=False)
                 with gr.Row():
-                    Drop = gr.Dropdown(["HassakuSFW", "Manual Download"], label="Model", interactive=True)
-                    TypeDrop = gr.Dropdown(["SDXL/Pony", "SD"], label="Type", interactive=True)
-                    load_button = gr.Button("Load", scale=0, variant="primary")
+                    Drop = gr.Dropdown(models_name_list, label="Model", interactive=True, min_width=200, scale=2)
+                    TypeDrop = gr.Dropdown(models_types_list, label="Type", interactive=True, scale=2)
+                    with gr.Column(min_width=50, scale=1):
+                        load_button = gr.Button("Load", scale=0, variant="primary")
+                        loadDown_button = gr.Button("Down/Load", scale=0, variant="primary")
                 with gr.Row():
                     downloadlink = gr.Text(
                     label="Download link",
@@ -268,7 +392,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
 
         gallery = gr.Gallery(label="Generated images", show_label=False, elem_id="gallery", columns=[5], rows=[1])
         
-        with gr.Accordion("Advanced Settings", open=True):
+        with gr.Accordion("Advanced Settings", open=True, visible=False) as AdvSet:
             negative_prompt = gr.Text(
                 label="Negative prompt",
                 max_lines=1,
@@ -326,20 +450,23 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                     maximum=1,
                     step=0.02,
                     value=0.8,
+                    visible=False,
                 )
                 num_frames = gr.Slider(
                     label="Frames count",
                     minimum=2,
                     maximum=32,
                     step=1,
-                    value=8,
+                    value=9,
+                    visible=False,
                 )
                 fps_count = gr.Slider(
                     label="gif fps",
-                    minimum=3,
+                    minimum=2,
                     maximum=32,
                     step=1,
                     value=8,
+                    visible=False,
                 )
     gr.on(
         triggers=[run_button.click, prompt.submit],
@@ -370,7 +497,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
         triggers=[Tx2i.select, Moreomore.select, I2i.select],
         fn=Swap_pipes,
         inputs=[],
-        outputs=[width, height, strength],
+        outputs=[width, height, strength, negative_prompt, AdvSet],
     )
     gr.on(
         triggers=[result.upload],
@@ -387,7 +514,16 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            Drop,
            TypeDrop
         ],
-        outputs=[prompt, PipeReady],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
+    )
+    gr.on(
+        triggers=[loadDown_button.click],
+        fn=DownNload_Model,
+        inputs=[
+           Drop,
+           TypeDrop
+        ],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
     )
     gr.on(
         triggers=[down_button.click],
@@ -398,18 +534,10 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
         outputs=[downloadlink],
     )
     gr.on(
-        triggers=[downloadlink.submit],
-        fn=Download_Model,
-        inputs=[
-           downloadlink,
-        ],
-        outputs=[demo],
-    )
-    gr.on(
         triggers=[Moreomore.select],
         fn=update_all,
         inputs=[],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
     )
     gr.on(
         triggers=[gif_button.click],

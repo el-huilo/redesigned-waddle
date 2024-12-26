@@ -26,13 +26,11 @@ models_name_list = [
     "XXX-Ray (Real)",
     "Toonify (Cartoon)",
     "Alchemist Mix OnlyToons (Cartoon)",
-    "Hunyuan Video",
     "Manual Download"
 ]
 models_types_list = [
     "SDXL/Pony",
-    "SD",
-    "HunyuanVideo"
+    "SD"
 ]
 class AuxVars:
     def __init__(self):
@@ -102,8 +100,8 @@ else:
         aux.sdev()
     else:
         aux.sl()
-# if not os.path.isdir("/content/gifs"):
-#     os.mkdir("/content/gifs")
+if not os.path.isdir("/content/gifs"):
+    os.mkdir("/content/gifs")
 
 def Download_Model(link):
     subprocess.run(["curl", "-Lo", "Manual_Download.safetensors", link])
@@ -122,16 +120,16 @@ def DownNload_Model(value, type):
 def Load_Model(value, type):
     ModelPath = value.replace(" ", "_")
     if type == "SDXL/Pony":
-        pipes.load(StableDiffusionXLPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
+        pipes.load(StableDiffusionXLPipeline.from_pretrained(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
     elif type == "SD":
         pipes.load(StableDiffusionPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
-    else:
-        transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
-                                                                      quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
-                                                                      torch_dtype=aux.torch_dtype)
-        pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
-                                                    transformer=transformer,
-                                                    torch_dtype=aux.torch_dtype))
+    # else:
+        # transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
+        #                                                               quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
+        #                                                               torch_dtype=aux.torch_dtype)
+        # pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
+        #                                             transformer=transformer,
+        #                                             torch_dtype=aux.torch_dtype))
     return update_all()
 
 def check_version():
@@ -513,7 +511,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            Drop,
            TypeDrop
         ],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
     )
     gr.on(
         triggers=[loadDown_button.click],
@@ -522,7 +520,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            Drop,
            TypeDrop
         ],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
     )
     gr.on(
         triggers=[down_button.click],
@@ -536,7 +534,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
         triggers=[Moreomore.select],
         fn=update_all,
         inputs=[],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
     )
     gr.on(
         triggers=[gif_button.click],

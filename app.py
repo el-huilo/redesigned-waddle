@@ -120,7 +120,7 @@ def DownNload_Model(value, type):
 def Load_Model(value, type):
     ModelPath = value.replace(" ", "_")
     if type == "SDXL/Pony":
-        pipes.load(StableDiffusionXLPipeline.from_pretrained(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
+        pipes.load(StableDiffusionXLPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
     elif type == "SD":
         pipes.load(StableDiffusionPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
     # else:

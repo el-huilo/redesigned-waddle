@@ -298,7 +298,6 @@ def animinfer(
     if state == "Text2Vid":
         image = pipes.animpipe(
             prompt=prompt,
-            negative_prompt=negative_prompt,
             guidance_scale=guidance_scale,
             num_inference_steps=num_inference_steps,
             width=width,

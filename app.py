@@ -37,13 +37,13 @@ models_types_list = [
 ]
 class AuxVars:
     def __init__(self):
-        self.version = "v3.5"
+        self.version = "v3.7"
         self.was_loaded = False
         self.animiter = 0
         self.AnimpipeReady = False
         self.T2V = False
         self.max_image_size = 1024
-        self.max_frames = 256
+        self.max_frames = 196
         self.min_frames = 2
         self.step_frames = 1
         if torch.cuda.is_available():
@@ -74,9 +74,9 @@ class Pipes:
             adapter = MotionAdapter.from_pretrained("guoyww/animatediff-motion-adapter-v1-5-3", torch_dtype=torch.float16)
             self.animpipe = AnimateDiffPipeline.from_pipe(self.pipe, motion_adapter=adapter)
             self.animpipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.animpipe.scheduler.config, beta_schedule="linear")
-            self.animpipe.enable_free_noise()
-            self.animpipe.enable_free_noise_split_inference()
-            self.animpipe.unet.enable_forward_chunking(16)
+            self.animpipe.enable_free_noise(context_length=16, context_stride=4)
+            # self.animpipe.enable_free_noise_split_inference() why torch.tensor error
+            # self.animpipe.unet.enable_forward_chunking(16)
             aux.AnimpipeReady = True
             self.animpipe.to(aux.device)
         aux.was_loaded = True
@@ -108,8 +108,8 @@ else:
         aux.sdev()
     else:
         aux.sl()
-# if not os.path.isdir("/content/gifs"):
-#     os.mkdir("/content/gifs")
+if not os.path.isdir("/content/gifs"):
+    os.mkdir("/content/gifs")
 
 def Download_Model(link):
     subprocess.run(["curl", "-Lo", "Manual_Download.safetensors", link])

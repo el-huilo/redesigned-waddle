@@ -156,7 +156,9 @@ def update_all():
                 gif_button: gr.Button(visible=aux.AnimpipeReady),
                 num_frames: gr.Slider(visible=aux.AnimpipeReady, maximum=aux.max_frames, minimum=aux.min_frames, step=aux.step_frames),
                 fps_count: gr.Slider(visible=aux.AnimpipeReady),
-                Tx2v: gr.Tab(visible=False)
+                Tx2v: gr.Tab(visible=False),
+                FrameKey: gr.Text(visible=aux.AnimpipeReady),
+                PromptsDict: gr.Accordion(visible=aux.AnimpipeReady)
                 }
     elif aux.was_loaded == True and aux.T2V == True:
         return {prompt: gr.Text(placeholder="Firstly load model in More", interactive=aux.was_loaded),
@@ -166,7 +168,9 @@ def update_all():
                 gif_button: gr.Button(visible=aux.AnimpipeReady),
                 num_frames: gr.Slider(visible=aux.AnimpipeReady),
                 fps_count: gr.Slider(visible=aux.AnimpipeReady),
-                Tx2v: gr.Tab(visible=True)
+                Tx2v: gr.Tab(visible=True),
+                FrameKey: gr.Text(visible=aux.AnimpipeReady),
+                PromptsDict: gr.Accordion(visible=aux.AnimpipeReady)
                 }
     else:
         return {prompt: gr.Text(placeholder="Firstly load model in More", interactive=aux.was_loaded),
@@ -176,7 +180,9 @@ def update_all():
                 gif_button: gr.Button(visible=aux.AnimpipeReady),
                 num_frames: gr.Slider(visible=aux.AnimpipeReady),
                 fps_count: gr.Slider(visible=aux.AnimpipeReady),
-                Tx2v: gr.Tab(visible=False)
+                Tx2v: gr.Tab(visible=False),
+                FrameKey: gr.Text(visible=aux.AnimpipeReady),
+                PromptsDict: gr.Accordion(visible=aux.AnimpipeReady)
                 }
 
 def Device():
@@ -371,7 +377,6 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                         loadDown_button = gr.Button("Down/Load", scale=0, variant="primary")
                 with gr.Row():
                     downloadlink = gr.Text(
-                    label="Download link",
                     show_label=False,
                     max_lines=1,
                     placeholder="https://civitai.com/api/download/models/378499?token=YOURTOKEN",
@@ -389,18 +394,19 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                     interactive=True,
                     scale=0,
                     min_width=100,
+                    visible=False
                 )
             prompt = gr.Text(
                     show_label=False,
                     max_lines=3,
                     placeholder="Firstly load model in More",
                     container=False,
-                    interactive=True,
+                    interactive=False,
                     scale=8,
                 )
             run_button = gr.Button("Gen", scale=0, variant="primary", min_width=100)
             gif_button = gr.Button("Gif", scale=0, variant="primary", visible=aux.AnimpipeReady, min_width=100)
-        with gr.Accordion("Prompts dictionary for gif", open=False, visible=True) as PromptsDict:
+        with gr.Accordion("Prompts dictionary for gif", open=False, visible=False) as PromptsDict:
             with gr.Row():
                 add_prompt_button = gr.Button("Add", scale=1, variant="primary")
                 del_prompt_button = gr.Button("Del", scale=1, variant="primary")
@@ -565,7 +571,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            Drop,
            TypeDrop
         ],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v, FrameKey, PromptsDict],
     )
     gr.on(
         triggers=[loadDown_button.click],
@@ -574,7 +580,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
            Drop,
            TypeDrop
         ],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v, FrameKey, PromptsDict],
     )
     gr.on(
         triggers=[down_button.click],
@@ -588,7 +594,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
         triggers=[Moreomore.select],
         fn=update_all,
         inputs=[],
-        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v],
+        outputs=[prompt, PipeReady, gallery, VStatus, gif_button, num_frames, fps_count, Tx2v, FrameKey, PromptsDict],
     )
     gr.on(
         triggers=[gif_button.click],

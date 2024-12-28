@@ -86,7 +86,6 @@ class Pipes:
         self.pipe.enable_vae_slicing()
         self.pipe.vae.enable_tiling()
         self.pipe.enable_sequential_cpu_offload()
-        self.pipe.to(aux.device)
         aux.was_loaded = True
         aux.AnimpipeReady = True
         aux.T2V = True
@@ -133,8 +132,8 @@ def Load_Model(value, type):
         pipes.load(StableDiffusionPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
     else:
         transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
-                                                                      quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
-                                                                      torch_dtype=aux.torch_dtype)
+                                                                      quantization_config=GGUFQuantizationConfig(),
+                                                                      )
         pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
                                                     transformer=transformer,
                                                     torch_dtype=aux.torch_dtype))
@@ -315,7 +314,7 @@ def animinfer(
     generator = torch.Generator().manual_seed(seed)
 
     if state == "Text2Vid":
-        image = pipes.animpipe(
+        image = pipes.pipe(
             prompt=prompt,
             guidance_scale=guidance_scale,
             num_inference_steps=num_inference_steps,
@@ -551,7 +550,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
         outputs=[promptlist],
     )
     gr.on(
-        triggers=[Tx2i.select, Moreomore.select, I2i.select],
+        triggers=[Tx2i.select, Moreomore.select, I2i.select, Tx2v.select],
         fn=Swap_pipes,
         inputs=[],
         outputs=[width, height, strength, negative_prompt, AdvSet],

@@ -13,6 +13,7 @@ models_link_list = [
     "https://civitai.com/api/download/models/378499?token=46a07f9ea1cf055b02a4bcb2c4277e95",
     "https://civitai.com/api/download/models/575495?token=46a07f9ea1cf055b02a4bcb2c4277e95",
     "https://civitai.com/api/download/models/306531?type=Model&format=SafeTensor&size=pruned&fp=fp32&token=46a07f9ea1cf055b02a4bcb2c4277e95",
+    "https://civitai.com/api/download/models/106922?token=46a07f9ea1cf055b02a4bcb2c4277e95",
     "https://civitai.com/api/download/models/1094291?token=46a07f9ea1cf055b02a4bcb2c4277e95",
     "https://civitai.com/api/download/models/1195065?token=46a07f9ea1cf055b02a4bcb2c4277e95",
     "https://civitai.com/api/download/models/410539?token=46a07f9ea1cf055b02a4bcb2c4277e95",
@@ -22,6 +23,7 @@ models_name_list = [
     "HassakuSFW (Anime)",
     "HassakuNSFW (Anime)",
     "Hentai 1.3 (Anime, SD)",
+    "HassakuNSFW (Anime, SD)",
     "Lustify (Real)",
     "XXX-Ray (Real)",
     "Toonify (Cartoon)",
@@ -30,7 +32,8 @@ models_name_list = [
 ]
 models_types_list = [
     "SDXL/Pony",
-    "SD"
+    "SD",
+    "HunyuanVideo"
 ]
 class AuxVars:
     def __init__(self):
@@ -40,7 +43,7 @@ class AuxVars:
         self.AnimpipeReady = False
         self.T2V = False
         self.max_image_size = 1024
-        self.max_frames = 32
+        self.max_frames = 256
         self.min_frames = 2
         self.step_frames = 1
         if torch.cuda.is_available():
@@ -71,6 +74,9 @@ class Pipes:
             adapter = MotionAdapter.from_pretrained("guoyww/animatediff-motion-adapter-v1-5-3", torch_dtype=torch.float16)
             self.animpipe = AnimateDiffPipeline.from_pipe(self.pipe, motion_adapter=adapter)
             self.animpipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.animpipe.scheduler.config, beta_schedule="linear")
+            self.animpipe.enable_free_noise()
+            self.animpipe.enable_free_noise_split_inference()
+            self.animpipe.unet.enable_forward_chunking(16)
             aux.AnimpipeReady = True
             self.animpipe.to(aux.device)
         aux.was_loaded = True
@@ -79,6 +85,7 @@ class Pipes:
         self.pipe = pipe
         self.pipe.enable_vae_slicing()
         self.pipe.vae.enable_tiling()
+        self.pipe.enable_model_cpu_offload()
         self.pipe.to(aux.device)
         aux.was_loaded = True
         aux.AnimpipeReady = True
@@ -89,6 +96,7 @@ class Pipes:
 
 MAX_SEED = np.iinfo(np.int32).max
 Image_Storage = []
+Prompt_Storage = {}
 aux = AuxVars()
 pipes = Pipes()
 try:
@@ -100,8 +108,8 @@ else:
         aux.sdev()
     else:
         aux.sl()
-if not os.path.isdir("/content/gifs"):
-    os.mkdir("/content/gifs")
+# if not os.path.isdir("/content/gifs"):
+#     os.mkdir("/content/gifs")
 
 def Download_Model(link):
     subprocess.run(["curl", "-Lo", "Manual_Download.safetensors", link])
@@ -123,13 +131,13 @@ def Load_Model(value, type):
         pipes.load(StableDiffusionXLPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
     elif type == "SD":
         pipes.load(StableDiffusionPipeline.from_single_file(f"/content/{ModelPath}.safetensors", torch_dtype=aux.torch_dtype), type)
-    # else:
-        # transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
-        #                                                               quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
-        #                                                               torch_dtype=aux.torch_dtype)
-        # pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
-        #                                             transformer=transformer,
-        #                                             torch_dtype=aux.torch_dtype))
+    else:
+        transformer = HunyuanVideoTransformer3DModel.from_single_file("https://huggingface.co/city96/HunyuanVideo-gguf/blob/main/hunyuan-video-t2v-720p-Q4_K_M.gguf",
+                                                                      quantization_config=GGUFQuantizationConfig(compute_dtype=aux.torch_dtype),
+                                                                      torch_dtype=aux.torch_dtype)
+        pipes.HunLoad(HunyuanVideoPipeline.from_pretrained("hunyuanvideo-community/HunyuanVideo",
+                                                    transformer=transformer,
+                                                    torch_dtype=aux.torch_dtype))
     return update_all()
 
 def check_version():
@@ -191,6 +199,13 @@ def Handle_Images(index):
     else:
         del Image_Storage[intind-1]
         return Image_Storage
+
+def Handle_MultPrompts(key, value, called_by):
+    if called_by == "Add":
+        Prompt_Storage[int(key)] = value
+    else:
+        del Prompt_Storage[int(key)]
+    return "\n".join(f"{a}: {Prompt_Storage[a]}" for a in Prompt_Storage)
 
 def Swap_pipes(evt: gr.SelectData):
     global state
@@ -304,6 +319,8 @@ def animinfer(
             num_frames=num_frames,
         ).frames[0]
     else:
+        if Prompt_Storage:
+            prompt = Prompt_Storage
         image = pipes.animpipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -364,22 +381,39 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                     down_button = gr.Button("Download", scale=0, variant="primary")
         
         with gr.Row():
-            prompt = gr.Text(
-                    label="Prompt",
+            FrameKey = gr.Text(
                     show_label=False,
                     max_lines=1,
+                    placeholder="Frame:",
+                    container=False,
+                    interactive=True,
+                    scale=0,
+                    min_width=100,
+                )
+            prompt = gr.Text(
+                    show_label=False,
+                    max_lines=3,
                     placeholder="Firstly load model in More",
                     container=False,
-                    interactive=False,
+                    interactive=True,
+                    scale=8,
                 )
-            run_button = gr.Button("Gen", scale=0, variant="primary")
-            gif_button = gr.Button("Gif", scale=0, variant="primary", visible=aux.AnimpipeReady)
-        
+            run_button = gr.Button("Gen", scale=0, variant="primary", min_width=100)
+            gif_button = gr.Button("Gif", scale=0, variant="primary", visible=aux.AnimpipeReady, min_width=100)
+        with gr.Accordion("Prompts dictionary for gif", open=False, visible=True) as PromptsDict:
+            with gr.Row():
+                add_prompt_button = gr.Button("Add", scale=1, variant="primary")
+                del_prompt_button = gr.Button("Del", scale=1, variant="primary")
+            promptlist = gr.Text(
+                show_label=False,
+                placeholder="Frame : prompt",
+                container=False,
+                interactive=False,
+            )
         result = gr.Image(label="Result", show_label=False, interactive=True)
 
         with gr.Row():
             Image_Del_Num = gr.Text(
-                label="Удаление кортынки",
                 show_label=False,
                 max_lines=1,
                 placeholder="Номер кортынки. all удалить все",
@@ -489,6 +523,26 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
             Image_Del_Num,
         ],
         outputs=[gallery],
+    )
+    gr.on(
+        triggers=[add_prompt_button.click],
+        fn=Handle_MultPrompts,
+        inputs=[
+            FrameKey,
+            prompt,
+            add_prompt_button,
+        ],
+        outputs=[promptlist],
+    )
+    gr.on(
+        triggers=[del_prompt_button.click],
+        fn=Handle_MultPrompts,
+        inputs=[
+            FrameKey,
+            prompt,
+            del_prompt_button,
+        ],
+        outputs=[promptlist],
     )
     gr.on(
         triggers=[Tx2i.select, Moreomore.select, I2i.select],

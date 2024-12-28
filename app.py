@@ -1,6 +1,6 @@
 import gradio as gr
 import numpy as np
-import random, os, subprocess, torch, sys
+import random, os, subprocess, torch, sys, requests
 from PIL import Image
 
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
@@ -85,7 +85,7 @@ class Pipes:
         self.pipe = pipe
         self.pipe.enable_vae_slicing()
         self.pipe.vae.enable_tiling()
-        self.pipe.enable_model_cpu_offload()
+        self.pipe.enable_sequential_cpu_offload()
         self.pipe.to(aux.device)
         aux.was_loaded = True
         aux.AnimpipeReady = True
@@ -141,8 +141,8 @@ def Load_Model(value, type):
     return update_all()
 
 def check_version():
-    # works only in google colab
-    if os.environ.get('LTS_V') == aux.version:
+    response = requests.get("https://github.com/el-huilo/redesigned-waddle/releases/latest")
+    if response.url.split('/').pop() == aux.version:
         return gr.Checkbox(value=True, label="Version: " + aux.version + " Latest")
     else:
         return gr.Checkbox(label="Version: " + aux.version + " New available")

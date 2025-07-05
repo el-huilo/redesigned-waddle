@@ -10,28 +10,13 @@ from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel, GGUF
 from diffusers.utils import export_to_gif
 
 models_link_list = [
-    "https://civitai.com/api/download/models/378499?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/575495?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/306531?type=Model&format=SafeTensor&size=pruned&fp=fp32&token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/106922?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/1094291?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/1195065?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/410539?token=46a07f9ea1cf055b02a4bcb2c4277e95",
-    "https://civitai.com/api/download/models/1129683?token=46a07f9ea1cf055b02a4bcb2c4277e95"
+    "cleanedUp"
 ]
 models_name_list = [
-    "HassakuSFW (Anime)",
-    "HassakuNSFW (Anime)",
-    "Hentai 1.3 (Anime, SD)",
-    "HassakuNSFW (Anime, SD)",
-    "Lustify (Real)",
-    "XXX-Ray (Real)",
-    "Toonify (Cartoon)",
-    "Alchemist Mix OnlyToons (Cartoon)",
-    "Manual Download"
+    "cleanedUp"
 ]
 models_types_list = [
-    "SDXL/Pony",
+    "SDXL",
     "SD",
     "HunyuanVideo"
 ]
@@ -378,7 +363,7 @@ with gr.Blocks(css=css, theme=aux.theme) as demo:
                     downloadlink = gr.Text(
                     show_label=False,
                     max_lines=1,
-                    placeholder="https://civitai.com/api/download/models/378499?token=YOURTOKEN",
+                    placeholder="https://civitai.com/api/download/models/000000?token=YOURTOKEN",
                     container=False,
                     interactive=True,
                 )
